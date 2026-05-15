@@ -1,18 +1,21 @@
 import { Hono } from "hono";
 import { generateState, verifyState } from "../lib/state";
-import {
-  buildAvatarUrl,
-  exchangeCode,
-  getUser,
-  isGuildMember,
-} from "../lib/discord";
+import { buildAvatarUrl, exchangeCode, getUser, isGuildMember } from "../lib/discord";
+import { saveDiscordConnection } from "../lib/kv";
 import type { Env } from "../types";
 
 const auth = new Hono<{ Bindings: Env }>();
 
-// GET /auth/login — returns the Discord OAuth2 authorization URL
+// GET /auth/login?user_id=<id>
+// Protected — requires X-Api-Key header (enforced at app level).
+// Returns the Discord OAuth2 authorization URL for the given webapp user.
 auth.get("/login", async (c) => {
-  const state = await generateState(c.env.HMAC_SECRET);
+  const userId = c.req.query("user_id");
+  if (!userId) {
+    return c.json({ error: "Missing user_id" }, 400);
+  }
+
+  const state = await generateState(c.env.HMAC_SECRET, userId);
   const params = new URLSearchParams({
     client_id: c.env.DISCORD_CLIENT_ID,
     redirect_uri: c.env.DISCORD_REDIRECT_URI,
@@ -24,24 +27,25 @@ auth.get("/login", async (c) => {
   return c.json({ url: `https://discord.com/oauth2/authorize?${params}` });
 });
 
-// GET /auth/callback — handles OAuth2 redirect from Discord
+// GET /auth/callback?code=<code>&state=<state>
+// Public — called by Discord (user's browser redirect). Validates state,
+// exchanges code, checks guild membership, stores result in KV, then
+// redirects the browser back to WEBAPP_REDIRECT_URI.
 auth.get("/callback", async (c) => {
   const code = c.req.query("code");
   const state = c.req.query("state");
   const error = c.req.query("error");
 
-  if (error) {
-    return c.json({ error: "OAuth denied", detail: error }, 400);
-  }
+  const redirectBase = c.env.WEBAPP_REDIRECT_URI;
 
-  if (!code || !state) {
-    return c.json({ error: "Missing code or state" }, 400);
-  }
+  const fail = (reason: string) =>
+    c.redirect(`${redirectBase}?error=${encodeURIComponent(reason)}`);
 
-  const stateValid = await verifyState(state, c.env.HMAC_SECRET);
-  if (!stateValid) {
-    return c.json({ error: "Invalid or expired state" }, 400);
-  }
+  if (error) return fail("oauth_denied");
+  if (!code || !state) return fail("missing_params");
+
+  const userId = await verifyState(state, c.env.HMAC_SECRET);
+  if (!userId) return fail("invalid_state");
 
   let accessToken: string;
   try {
@@ -52,36 +56,37 @@ auth.get("/callback", async (c) => {
       c.env.DISCORD_REDIRECT_URI,
     );
     accessToken = token.access_token;
-  } catch (err) {
-    return c.json({ error: "Failed to exchange authorization code" }, 502);
+  } catch {
+    return fail("token_exchange_failed");
   }
 
   let user: Awaited<ReturnType<typeof getUser>>;
   try {
     user = await getUser(accessToken);
   } catch {
-    return c.json({ error: "Failed to fetch Discord user" }, 502);
+    return fail("user_fetch_failed");
   }
 
   let verified: boolean;
   try {
-    verified = await isGuildMember(
-      user.id,
-      c.env.DISCORD_GUILD_ID,
-      c.env.DISCORD_BOT_TOKEN,
-    );
+    verified = await isGuildMember(user.id, c.env.DISCORD_GUILD_ID, c.env.DISCORD_BOT_TOKEN);
   } catch {
-    return c.json({ error: "Failed to check guild membership" }, 502);
+    return fail("guild_check_failed");
   }
 
-  return c.json({
+  await saveDiscordConnection(c.env.DISCORD_KV, userId, {
+    discord_id: user.id,
+    username: user.username,
+    avatar: buildAvatarUrl(user),
     verified,
-    user: {
-      id: user.id,
-      username: user.username,
-      avatar: buildAvatarUrl(user),
-    },
+    connected_at: new Date().toISOString(),
   });
+
+  const params = new URLSearchParams({
+    user_id: userId,
+    verified: String(verified),
+  });
+  return c.redirect(`${redirectBase}?${params}`);
 });
 
 export default auth;
