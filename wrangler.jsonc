@@ -9,6 +9,13 @@
     "DISCORD_CLIENT_ID": "",
     "DISCORD_GUILD_ID": "",
     "DISCORD_REDIRECT_URI": "",
+    "WEBAPP_REDIRECT_URI": "",
     "ALLOWED_ORIGIN": ""
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "DISCORD_KV",
+      "id": ""
+    }
+  ]
 }
