@@ -107,7 +107,7 @@ auth.get("/callback", async (c) => {
     user_id: userId,
     verified: String(verified),
     discord_id: user.id,
-    username: user.username,
+    discord_username: user.username,
   });
   if (avatar) params.set("avatar", avatar);
   return c.redirect(`${redirectBase}?${params}`);
