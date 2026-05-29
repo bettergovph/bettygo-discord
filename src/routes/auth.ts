@@ -89,6 +89,9 @@ auth.get("/callback", async (c) => {
   const params = new URLSearchParams({
     user_id: userId,
     discord_id: user.id,
+    discord_username: user.username,
+    discord_display_name: user.global_name ?? '',
+    discord_avatar: user.avatar ?? '',
   });
   return c.redirect(`${redirectBase}?${params}`);
 });
