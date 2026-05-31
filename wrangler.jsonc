@@ -18,7 +18,7 @@
     "DISCORD_CLIENT_ID": "1505119307041079346",
     "DISCORD_GUILD_ID": "1505116970117501070",
     "DISCORD_REDIRECT_URI": "https://bg.zel.kim/auth/callback",
-    "WEBAPP_REDIRECT_URI": "https://better-gov-ph-access-card-development.vercel.app/discord-callback,https://better-gov-ph-access-card.vercel.app/discord-callback,http://localhost:3000/discord-callback",
-    "ALLOWED_ORIGIN": "https://better-gov-ph-access-card.vercel.app,https://better-gov-ph-access-card.vercel.app,http://localhost:3000"
+    "WEBAPP_REDIRECT_URI": "https://volunteers.bettergov.ph/discord-callback,https://better-gov-ph-access-card-development.vercel.app/discord-callback,https://better-gov-ph-access-card.vercel.app/discord-callback,http://localhost:3000/discord-callback",
+    "ALLOWED_ORIGIN": "https://volunteers.bettergov.ph,https://better-gov-ph-access-card.vercel.app,https://better-gov-ph-access-card.vercel.app,http://localhost:3000"
   }
 }
