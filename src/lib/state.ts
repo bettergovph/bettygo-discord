@@ -72,3 +72,12 @@ export async function verifyState(
 
   return { userId, redirectUri };
 }
+
+// Signs the OAuth result handed back to the webapp so it can't be edited in the URL.
+// Payload: {ts}.{userId}.{discordId}.{discordUsername}, keyed with the shared API secret
+// the webapp already holds (it sends it as X-Api-Key). Returns lowercase hex.
+export async function signResult(secret: string, payload: string): Promise<string> {
+  const key = await importKey(secret);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return bufToHex(sig);
+}

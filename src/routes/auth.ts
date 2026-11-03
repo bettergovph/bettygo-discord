@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { generateState, verifyState } from "../lib/state";
+import { generateState, signResult, verifyState } from "../lib/state";
 import { exchangeCode, getUser } from "../lib/discord";
 import type { Env } from "../types";
 
@@ -93,6 +93,10 @@ auth.get("/callback", async (c) => {
     discord_display_name: user.global_name ?? '',
     discord_avatar: user.avatar ?? '',
   });
+  // Let the webapp prove these values came from us and weren't edited in transit.
+  const ts = Date.now().toString();
+  params.set("ts", ts);
+  params.set("sig", await signResult(c.env.API_SECRET, `${ts}.${userId}.${user.id}.${user.username}`));
   return c.redirect(`${redirectBase}?${params}`);
 });
 
