@@ -118,7 +118,7 @@ describe("HMAC state", () => {
 	});
 
 	it("rejects an expired state", async () => {
-		const ts = (Date.now() - 11 * 60 * 1000).toString();
+		const ts = (Date.now() - 31 * 60 * 1000).toString();
 		const payload = `${ts}.web-user-1`;
 		const state = `${payload}.${await hexSig(env.HMAC_SECRET, payload)}`;
 		expect(await verifyState(state, env.HMAC_SECRET)).toBeNull();

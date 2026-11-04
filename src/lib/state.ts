@@ -1,4 +1,4 @@
-const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const STATE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 async function importKey(secret: string): Promise<CryptoKey> {
   const enc = new TextEncoder();
