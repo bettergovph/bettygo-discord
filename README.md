@@ -154,7 +154,21 @@ Guild membership is **not** checked here — call `GET /users/:userId/discord` s
 **Redirect on success**
 ```
 {WEBAPP_REDIRECT_URI}?user_id=<webapp_user_id>&discord_id=<discord_snowflake>
+  &discord_username=<username>&discord_display_name=<display_name>&discord_avatar=<avatar_hash>
+  &ts=<unix_ms>&sig=<hex_hmac>
 ```
+
+| Param | Description |
+|-------|-------------|
+| `user_id` | The webapp user ID passed to `/auth/login` |
+| `discord_id` | Discord snowflake |
+| `discord_username` | Discord handle (empty string if absent) |
+| `discord_display_name` | Discord global name (empty string if absent) |
+| `discord_avatar` | Discord avatar hash (empty string if absent) |
+| `ts` | Millisecond timestamp the redirect was signed |
+| `sig` | HMAC-SHA256 hex over `{ts}.{user_id}.{discord_id}.{discord_username}`, keyed with `API_SECRET` |
+
+The webapp must recompute `sig` and reject stale `ts` values before trusting any of these params.
 
 **Redirect on error**
 ```

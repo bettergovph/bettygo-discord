@@ -165,3 +165,24 @@ dist
 .env*
 !.env.example
 .wrangler/
+
+# Local dev logs — never commit or push
+.dev.logs/
+
+# AI / agent artifacts — never commit or push
+.claude/
+.crush/
+.gemini/
+.cursor/
+.codex/
+.aider*
+.continue/
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+CRUSH.md
+GEMINI.md
+copilot-instructions.md
+
+# Generated wrangler types
+worker-configuration.d.ts

@@ -5,6 +5,14 @@ export default defineWorkersConfig({
 		poolOptions: {
 			workers: {
 				wrangler: { configPath: "./wrangler.jsonc" },
+				miniflare: {
+					bindings: {
+						DISCORD_CLIENT_SECRET: "test-client-secret",
+						DISCORD_BOT_TOKEN: "test-bot-token",
+						HMAC_SECRET: "test-hmac-secret",
+						API_SECRET: "test-api-secret",
+					},
+				},
 			},
 		},
 	},

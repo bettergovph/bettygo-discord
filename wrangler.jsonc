@@ -20,11 +20,5 @@
     "DISCORD_REDIRECT_URI": "https://bg.zel.kim/auth/callback",
     "WEBAPP_REDIRECT_URI": "https://volunteers.bettergov.ph/discord-callback,https://better-gov-ph-access-card.vercel.app/discord-callback,http://localhost:3000/discord-callback",
     "ALLOWED_ORIGIN": "https://volunteers.bettergov.ph,https://better-gov-ph-access-card.vercel.app,http://localhost:3000"
-  },
-  "kv_namespaces": [
-    {
-      "binding": "DISCORD_KV",
-      "id": "0f1b5edb01d24104aa1a3f1706ceb3ea"
-    }
-  ]
+  }
 }
