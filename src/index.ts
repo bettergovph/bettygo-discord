@@ -7,6 +7,11 @@ import type { Env } from "./types";
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.onError((err, c) => {
+  console.error("unhandled_error", err);
+  return c.json({ error: "internal_error" }, 500);
+});
+
 app.use("*", async (c, next) => {
   const origins = c.env.ALLOWED_ORIGIN
     ? c.env.ALLOWED_ORIGIN.split(",").map((o) => o.trim())

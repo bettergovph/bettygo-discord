@@ -47,57 +47,64 @@ auth.get("/login", async (c) => {
 // exchanges code, fetches the Discord user, then redirects to WEBAPP_REDIRECT_URI
 // with ?user_id=<id>&discord_id=<discord_id>.
 auth.get("/callback", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-  const error = c.req.query("error");
-
   const allowedRedirectUris = getAllowedRedirectUris(c.env);
   const defaultRedirectBase = allowedRedirectUris[0];
 
   const fail = (reason: string, redirectBase = defaultRedirectBase) =>
     c.redirect(`${redirectBase}?error=${encodeURIComponent(reason)}`);
 
-  if (error) return fail("oauth_denied");
-  if (!code || !state) return fail("missing_params");
-
-  const payload = await verifyState(state, c.env.HMAC_SECRET);
-  if (!payload) return fail("invalid_state");
-
-  const { userId, redirectUri } = payload;
-  const redirectBase = redirectUri ?? defaultRedirectBase;
-
-  let accessToken: string;
   try {
-    const token = await exchangeCode(
-      code,
-      c.env.DISCORD_CLIENT_ID,
-      c.env.DISCORD_CLIENT_SECRET,
-      c.env.DISCORD_REDIRECT_URI,
-    );
-    accessToken = token.access_token;
-  } catch {
-    return fail("token_exchange_failed", redirectBase);
-  }
+    const code = c.req.query("code");
+    const state = c.req.query("state");
+    const error = c.req.query("error");
 
-  let user: Awaited<ReturnType<typeof getUser>>;
-  try {
-    user = await getUser(accessToken);
-  } catch {
-    return fail("user_fetch_failed", redirectBase);
-  }
+    if (error) return fail("oauth_denied");
+    if (!code || !state) return fail("missing_params");
 
-  const params = new URLSearchParams({
-    user_id: userId,
-    discord_id: user.id,
-    discord_username: user.username,
-    discord_display_name: user.global_name ?? '',
-    discord_avatar: user.avatar ?? '',
-  });
-  // Let the webapp prove these values came from us and weren't edited in transit.
-  const ts = Date.now().toString();
-  params.set("ts", ts);
-  params.set("sig", await signResult(c.env.API_SECRET, `${ts}.${userId}.${user.id}.${user.username}`));
-  return c.redirect(`${redirectBase}?${params}`);
+    const payload = await verifyState(state, c.env.HMAC_SECRET);
+    if (!payload) return fail("invalid_state");
+
+    const { userId, redirectUri } = payload;
+    const redirectBase = redirectUri ?? defaultRedirectBase;
+
+    let accessToken: string;
+    try {
+      const token = await exchangeCode(
+        code,
+        c.env.DISCORD_CLIENT_ID,
+        c.env.DISCORD_CLIENT_SECRET,
+        c.env.DISCORD_REDIRECT_URI,
+      );
+      accessToken = token.access_token;
+    } catch (err) {
+      console.error("token_exchange_failed", err);
+      return fail("token_exchange_failed", redirectBase);
+    }
+
+    let user: Awaited<ReturnType<typeof getUser>>;
+    try {
+      user = await getUser(accessToken);
+    } catch (err) {
+      console.error("user_fetch_failed", err);
+      return fail("user_fetch_failed", redirectBase);
+    }
+
+    const params = new URLSearchParams({
+      user_id: userId,
+      discord_id: user.id,
+      discord_username: user.username,
+      discord_display_name: user.global_name ?? '',
+      discord_avatar: user.avatar ?? '',
+    });
+    // Let the webapp prove these values came from us and weren't edited in transit.
+    const ts = Date.now().toString();
+    params.set("ts", ts);
+    params.set("sig", await signResult(c.env.API_SECRET, `${ts}.${userId}.${user.id}.${user.username}`));
+    return c.redirect(`${redirectBase}?${params}`);
+  } catch (err) {
+    console.error("auth_callback_failed", err);
+    return fail("server_error");
+  }
 });
 
 export default auth;
