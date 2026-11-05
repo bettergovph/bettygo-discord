@@ -18,7 +18,7 @@ app.use("*", async (c, next) => {
     : ["*"];
   return cors({
     origin: origins,
-    allowMethods: ["GET", "DELETE", "OPTIONS"],
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "X-Api-Key"],
   })(c, next);
 });

@@ -75,6 +75,14 @@ function mockMember(guildId: string, userId: string, status: number) {
 		});
 }
 
+
+function mockRole(guildId: string, userId: string, roleId: string, method: string, status: number) {
+	fetchMock
+		.get(DISCORD)
+		.intercept({ path: `/api/v10/guilds/${guildId}/members/${userId}/roles/${roleId}`, method })
+		.reply(status, { ok: status < 400 }, { headers: JSON_HEADERS });
+}
+
 beforeAll(() => {
 	fetchMock.activate();
 	fetchMock.disableNetConnect();
@@ -300,5 +308,69 @@ describe("GET /users/:userId/discord", () => {
 		const res = await call(`/users/${userId}/discord`, keyed());
 		expect(res.status).toBe(502);
 		expect(await res.json()).toEqual({ error: "guild_check_failed" });
+	});
+});
+
+describe("POST /users/:userId/discord/roles", () => {
+	const userId = "123456789012345678";
+	const roleId = "1415670958710325999";
+
+	it("rejects requests without an api key", async () => {
+		const res = await call(`/users/${userId}/discord/roles`, {
+			method: "POST",
+			body: JSON.stringify({ roleId }),
+			headers: JSON_HEADERS,
+		});
+		expect(res.status).toBe(401);
+	});
+
+	it("rejects a malformed role id without calling Discord", async () => {
+		const res = await call(`/users/${userId}/discord/roles`, keyed({
+			method: "POST",
+			body: JSON.stringify({ roleId: "not-a-role" }),
+			headers: JSON_HEADERS,
+		}));
+		expect(res.status).toBe(400);
+		expect(await res.json()).toEqual({ error: "invalid_role_id" });
+	});
+
+	it("grants the role", async () => {
+		mockRole(env.DISCORD_GUILD_ID, userId, roleId, "PUT", 200);
+		const res = await call(`/users/${userId}/discord/roles`, keyed({
+			method: "POST",
+			body: JSON.stringify({ roleId }),
+			headers: JSON_HEADERS,
+		}));
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ granted: true, roleId });
+	});
+
+	it("reports a missing bot permission instead of a generic failure", async () => {
+		mockRole(env.DISCORD_GUILD_ID, userId, roleId, "PUT", 403);
+		const res = await call(`/users/${userId}/discord/roles`, keyed({
+			method: "POST",
+			body: JSON.stringify({ roleId }),
+			headers: JSON_HEADERS,
+		}));
+		expect(res.status).toBe(500);
+		expect(await res.json()).toEqual({ error: "bot_permission_denied" });
+	});
+
+	it("revokes the role", async () => {
+		mockRole(env.DISCORD_GUILD_ID, userId, roleId, "DELETE", 200);
+		const res = await call(`/users/${userId}/discord/roles/${roleId}`, keyed({ method: "DELETE" }));
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ revoked: true, roleId });
+	});
+
+	it("returns 404 when Discord does not know the member or role", async () => {
+		mockRole(env.DISCORD_GUILD_ID, userId, roleId, "PUT", 404);
+		const res = await call(`/users/${userId}/discord/roles`, keyed({
+			method: "POST",
+			body: JSON.stringify({ roleId }),
+			headers: JSON_HEADERS,
+		}));
+		expect(res.status).toBe(404);
+		expect(await res.json()).toEqual({ error: "unknown_member_or_role" });
 	});
 });
