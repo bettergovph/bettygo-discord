@@ -60,3 +60,44 @@ export async function isGuildMember(
   if (!res.ok) throw new DiscordAPIError(`guild_check_failed: ${res.status}`, res.status);
   return true;
 }
+
+/** Discord snowflakes are decimal ids; anything else is a client bug, not a Discord call. */
+export function isSnowflake(value: unknown): value is string {
+  return typeof value === "string" && /^\d{5,25}$/.test(value);
+}
+
+async function setRole(
+  method: "PUT" | "DELETE",
+  userId: string,
+  guildId: string,
+  roleId: string,
+  botToken: string,
+): Promise<void> {
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+    method,
+    headers: { Authorization: `Bot ${botToken}` },
+  });
+  if (!res.ok) {
+    const action = method === "PUT" ? "role_grant" : "role_revoke";
+    throw new DiscordAPIError(`${action}_failed: ${res.status}`, res.status);
+  }
+}
+
+/** Requires the bot to hold MANAGE_ROLES and to rank above the role it is assigning. */
+export function grantRole(
+  userId: string,
+  guildId: string,
+  roleId: string,
+  botToken: string,
+): Promise<void> {
+  return setRole("PUT", userId, guildId, roleId, botToken);
+}
+
+export function revokeRole(
+  userId: string,
+  guildId: string,
+  roleId: string,
+  botToken: string,
+): Promise<void> {
+  return setRole("DELETE", userId, guildId, roleId, botToken);
+}
