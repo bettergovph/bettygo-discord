@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { isGuildMember, isSnowflake, grantRole, revokeRole, DiscordAPIError } from "../lib/discord";
+import { getGuildMembership, isSnowflake, grantRole, revokeRole, DiscordAPIError } from "../lib/discord";
 import type { Env } from "../types";
 
 const users = new Hono<{ Bindings: Env }>();
@@ -7,12 +7,13 @@ const users = new Hono<{ Bindings: Env }>();
 // GET /users/:userId/discord
 // Protected — requires X-Api-Key header (enforced at app level).
 // :userId must be the Discord user snowflake ID.
-// Returns { verified: boolean } based on live guild membership check.
+// Returns { verified: boolean, roles: string[] } from a live guild membership check.
+// `roles` lets the caller diff the roles it manages instead of guessing.
 users.get("/:userId/discord", async (c) => {
   const { userId } = c.req.param();
-  let verified: boolean;
+  let membership: { verified: boolean; roles: string[] };
   try {
-    verified = await isGuildMember(userId, c.env.DISCORD_GUILD_ID, c.env.DISCORD_BOT_TOKEN);
+    membership = await getGuildMembership(userId, c.env.DISCORD_GUILD_ID, c.env.DISCORD_BOT_TOKEN);
   } catch (err) {
     if (err instanceof DiscordAPIError) {
       if (err.status === 400) return c.json({ error: "invalid_discord_id" }, 400);
@@ -20,7 +21,7 @@ users.get("/:userId/discord", async (c) => {
     }
     return c.json({ error: "guild_check_failed" }, 502);
   }
-  return c.json({ verified });
+  return c.json({ verified: membership.verified, roles: membership.roles });
 });
 
 // POST /users/:userId/discord/roles  { roleId }

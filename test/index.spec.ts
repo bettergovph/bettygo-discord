@@ -66,11 +66,11 @@ function mockUser(overrides: Record<string, unknown> = {}) {
 		);
 }
 
-function mockMember(guildId: string, userId: string, status: number) {
+function mockMember(guildId: string, userId: string, status: number, body: Record<string, unknown> = {}) {
 	fetchMock
 		.get(DISCORD)
 		.intercept({ path: `/api/v10/guilds/${guildId}/members/${userId}` })
-		.reply(status, status === 404 ? { message: "Unknown Member", code: 10007 } : { ok: status < 400 }, {
+		.reply(status, status === 404 ? { message: "Unknown Member", code: 10007 } : { ok: status < 400, ...body }, {
 			headers: JSON_HEADERS,
 		});
 }
@@ -279,14 +279,24 @@ describe("GET /users/:userId/discord", () => {
 		mockMember(env.DISCORD_GUILD_ID, userId, 200);
 		const res = await call(`/users/${userId}/discord`, keyed());
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ verified: true });
+		expect(await res.json()).toEqual({ verified: true, roles: [] });
+	});
+
+	it("returns the roles the member holds", async () => {
+		mockMember(env.DISCORD_GUILD_ID, userId, 200, { roles: ["1415670958710325999", "1415670958710325888"] });
+		const res = await call(`/users/${userId}/discord`, keyed());
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			verified: true,
+			roles: ["1415670958710325999", "1415670958710325888"],
+		});
 	});
 
 	it("returns verified false when Discord returns 404", async () => {
 		mockMember(env.DISCORD_GUILD_ID, userId, 404);
 		const res = await call(`/users/${userId}/discord`, keyed());
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ verified: false });
+		expect(await res.json()).toEqual({ verified: false, roles: [] });
 	});
 
 	it("returns 400 for a malformed Discord id", async () => {
