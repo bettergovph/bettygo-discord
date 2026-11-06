@@ -48,17 +48,31 @@ export class DiscordAPIError extends Error {
   }
 }
 
+export type GuildMembership = { verified: boolean; roles: string[] };
+
+/** One guild lookup that answers both "are they a member" and "which roles do they hold". */
+export async function getGuildMembership(
+  userId: string,
+  guildId: string,
+  botToken: string,
+): Promise<GuildMembership> {
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${userId}`, {
+    headers: { Authorization: `Bot ${botToken}` },
+  });
+  if (res.status === 404) return { verified: false, roles: [] };
+  if (!res.ok) throw new DiscordAPIError(`guild_check_failed: ${res.status}`, res.status);
+  const body = (await res.json().catch(() => ({}))) as { roles?: unknown };
+  const roles = Array.isArray(body.roles) ? body.roles.filter((r): r is string => typeof r === "string") : [];
+  return { verified: true, roles };
+}
+
 export async function isGuildMember(
   userId: string,
   guildId: string,
   botToken: string,
 ): Promise<boolean> {
-  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${userId}`, {
-    headers: { Authorization: `Bot ${botToken}` },
-  });
-  if (res.status === 404) return false;
-  if (!res.ok) throw new DiscordAPIError(`guild_check_failed: ${res.status}`, res.status);
-  return true;
+  const membership = await getGuildMembership(userId, guildId, botToken);
+  return membership.verified;
 }
 
 /** Discord snowflakes are decimal ids; anything else is a client bug, not a Discord call. */
